@@ -1,6 +1,6 @@
 (function(window){
   var $;
-
+    alert('FOO');
   /* This is run after we've connected to Trello and selected a list */
   var run = function(Trello, idList) {
     var name;
@@ -36,7 +36,30 @@
       
       // We're looking at a redmine issue
       name = $("#content h2:first").text().trim() + ": " + $("#content h3:first").text().trim();
-
+    } else if ($('a#page-edit_search').length) {
+        // We're looking at a RequestTracker (RT) search result
+        tickets = {};
+        all_tickets = $('td.collection-as-table b a');
+        // we need to find out the column where the owner is
+        $('th.collection-as-table a').each(function(index, header) {
+            if (header.attr('href').indexOf('OrderBy=Owner') != -1) {
+                owner_index = index;
+            }
+        });
+        // we now have all links twice, from column 1 and 2. 
+        $.each(all_tickets, function(ind, ticket) {
+            ticket = $(ticket);
+            if (ticket.text().indexOf(ticket.attr('href')) < 0) {
+                owner = ticket.parents('tr').find('td')[owner_index].text();
+                if (owner not in tickets) {
+                    tickets[owner] = [];
+                }
+                tickets[owner].push(
+                    {url: ticket.attr('href'),
+                     descr: ticket.text()});
+            }
+        });
+        console.log(tickets);
     } else if ($('#header h1').length) {
 
         // We're looking at a RequestTracker (RT) ticket
