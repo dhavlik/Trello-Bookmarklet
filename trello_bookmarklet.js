@@ -1,9 +1,41 @@
 (function(window){
   var $;
-    alert('FOO');
+
+    var notify = function(card) {
+        // Display a little notification in the upper-left corner with a link to the card
+        // that was just created
+        var container = $('#cardcontainer');
+        if (!container.length) {
+            $('<div id="cardcontainer"></div>').css({
+                  position: "absolute",
+                  left: 0,
+                  "z-index": 1e4,
+                  top: 0}).appendTo("body");
+            var container = $('#cardcontainer');
+        }
+        var $cardLink = $("<a>")
+        .attr({
+          href: card.url,
+          target: "card"
+        })
+        .text("Created trello card '" + card.name + "'")
+        .css({
+          padding: "4px",
+          border: "1px solid #000",
+          background: "#fff",
+          "z-index": 1e4
+        })
+        .appendTo("#cardcontainer")
+
+        setTimeout(function(){
+          $cardLink.fadeOut(3000);
+        }, 5000)
+    }
+
   /* This is run after we've connected to Trello and selected a list */
   var run = function(Trello, idList) {
     var name;
+    var tickets;
     // Default description is the URL of the page we're looking at
     var desc = location.href;
 
@@ -38,28 +70,35 @@
       name = $("#content h2:first").text().trim() + ": " + $("#content h3:first").text().trim();
     } else if ($('a#page-edit_search').length) {
         // We're looking at a RequestTracker (RT) search result
+        base_url = window.location.href.split('/').splice(0,3).join('/');
         tickets = {};
         all_tickets = $('td.collection-as-table b a');
         // we need to find out the column where the owner is
         $('th.collection-as-table a').each(function(index, header) {
-            if (header.attr('href').indexOf('OrderBy=Owner') != -1) {
+            header_link = $(header).attr('href');
+            if (header_link.indexOf('OrderBy=Owner') != -1) {
                 owner_index = index;
+            } else if (header_link.indexOf('OrderBy=Status') != -1) {
+                status_index = index;
             }
         });
         // we now have all links twice, from column 1 and 2. 
         $.each(all_tickets, function(ind, ticket) {
             ticket = $(ticket);
-            if (ticket.text().indexOf(ticket.attr('href')) < 0) {
-                owner = ticket.parents('tr').find('td')[owner_index].text();
-                if (owner not in tickets) {
-                    tickets[owner] = [];
+            if (ticket.attr('href').indexOf(ticket.text()) == -1) {
+                cells = ticket.parents('tr').find('td');
+                owner = $(cells[owner_index]).text();
+                stat = $(cells[status_index]).text();
+                if (owner != 'Nobody' & ((stat == 'open') | (stat == 'offen'))) {
+                    if (!(owner in tickets)) {
+                        tickets[owner] = {user: owner, tickets: []};
+                    }
+                    tickets[owner].tickets.push(
+                        {url: base_url + ticket.attr('href'),
+                         descr: ticket.text()});
                 }
-                tickets[owner].push(
-                    {url: ticket.attr('href'),
-                     descr: ticket.text()});
             }
         });
-        console.log(tickets);
     } else if ($('#header h1').length) {
 
         // We're looking at a RequestTracker (RT) ticket
@@ -98,34 +137,37 @@
     
     name = name || 'Unknown page';
 
-    // Create the card
-    if(name) {
+    if (tickets) {
+        // Create a bunch of cards
+        created = 0;
+        $.each(tickets, function(t_index, usertickets) {
+            if (usertickets.tickets.length > 0) {
+                Trello.post("lists/" + idList + "/cards", {
+                    name: 'RT Tickets for ' + usertickets.user,
+                    desc: desc
+                }, function(card) {
+                    // Add checklist
+                    Trello.post("cards/" + card.id + "/checklists", {
+                        name: 'TODO'
+                    }, function(checklist) {
+                       // Add items
+                       notify(card);
+                       $.each(usertickets.tickets, function(idx, tick) {
+                           Trello.post("checklists/" + checklist.id + '/checkItems', {
+                                name: tick.descr + ' (' + tick.url + ')'
+                           });
+                       });
+                    });
+                });
+            }
+        });
+    } else if(name) {
+      //create a single card
       Trello.post("lists/" + idList + "/cards", { 
         name: name, 
         desc: desc
       }, function(card){
-        // Display a little notification in the upper-left corner with a link to the card
-        // that was just created
-        var $cardLink = $("<a>")
-        .attr({
-          href: card.url,
-          target: "card"
-        })
-        .text("Created a Trello Card")
-        .css({
-          position: "absolute",
-          left: 0,
-          top: 0,
-          padding: "4px",
-          border: "1px solid #000",
-          background: "#fff",
-          "z-index": 1e3
-        })
-        .appendTo("body")
-
-        setTimeout(function(){
-          $cardLink.fadeOut(3000);
-        }, 5000)
+          notify(card);
       })
     }
   }
