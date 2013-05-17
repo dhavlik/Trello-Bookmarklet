@@ -143,8 +143,7 @@
         $.each(tickets, function(t_index, usertickets) {
             if (usertickets.tickets.length > 0) {
                 Trello.post("lists/" + idList + "/cards", {
-                    name: 'RT Tickets for ' + usertickets.user,
-                    desc: desc
+                    name: 'RT Tickets for ' + usertickets.user
                 }, function(card) {
                     // Add checklist
                     Trello.post("cards/" + card.id + "/checklists", {
