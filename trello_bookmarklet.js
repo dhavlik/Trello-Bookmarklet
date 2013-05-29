@@ -89,7 +89,7 @@
                 cells = ticket.parents('tr').find('td');
                 owner = $(cells[owner_index]).text();
                 stat = $(cells[status_index]).text();
-                if (owner != 'Nobody' & ((stat == 'open') | (stat == 'offen'))) {
+                if (owner != 'Nobody' & ((stat == 'open') | (stat == 'offen') | (stat == 'neu') | (stat == 'new'))) {
                     if (!(owner in tickets)) {
                         tickets[owner] = {user: owner, tickets: []};
                     }
